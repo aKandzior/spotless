@@ -122,7 +122,7 @@ class MultiProjectTest extends GradleIntegrationHarness {
 	}
 
 	@Test
-	public void predeclaredOrdering() throws IOException {
+	public void predeclaredOrderingIsFlexible() throws IOException {
 		setFile("build.gradle").toLines(
 				"plugins {",
 				"    id 'com.diffplug.spotless'",
@@ -131,10 +131,9 @@ class MultiProjectTest extends GradleIntegrationHarness {
 				"spotlessPredeclare {",
 				" java { googleJavaFormat('1.17.0') }",
 				"}",
-				"spotless { predeclareDepsFromBuildscript() }");
+				"spotless { predeclareDeps() }");
 		createNSubprojects();
-		Assertions.assertThat(gradleRunner().withArguments("spotlessApply").buildAndFail().getOutput())
-				.contains("Could not find method spotlessPredeclare() for arguments");
+		gradleRunner().withArguments("spotlessApply").build();
 	}
 
 	@Test
@@ -179,6 +178,6 @@ class MultiProjectTest extends GradleIntegrationHarness {
 				"}");
 		createNSubprojects();
 		Assertions.assertThat(gradleRunner().withArguments("spotlessApply").buildAndFail().getOutput())
-				.contains("Could not find method spotlessPredeclare() for arguments");
+				.contains("spotlessPredeclare requires `spotless { predeclareDeps() }` or `spotless { predeclareDepsFromBuildscript() }` in the root project.");
 	}
 }

@@ -50,6 +50,9 @@ public class SpotlessPlugin implements Plugin<Project> {
 
 		// setup the extension
 		project.getExtensions().create(SpotlessExtension.class, SpotlessExtension.EXTENSION, SpotlessExtensionImpl.class, project);
+		if (project.getRootProject() == project) {
+			project.getExtensions().create(SpotlessExtensionPredeclare.class, SpotlessExtension.EXTENSION_PREDECLARE, SpotlessExtensionPredeclare.class, project);
+		}
 
 		// clear spotless' cache when the user does a clean
 		// resolution for: https://github.com/diffplug/spotless/issues/243#issuecomment-564323856

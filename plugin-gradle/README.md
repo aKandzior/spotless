@@ -1972,6 +1972,7 @@ spotlessPredeclare {
 Alternatively, you can also use `predeclareDepsFromBuildscript()` to resolve the dependencies from the buildscript repositories rather than the project repositories.
 
 If you use this feature, you will get an error if you use a formatter in a subproject which is not declared in the `spotlessPredeclare` block.
+The `spotlessPredeclare` block can appear before or after the `spotless` block, but `predeclareDeps()` or `predeclareDepsFromBuildscript()` must be called to enable it.
 
 Note that this feature is also incompatible with Isolated projects, because every project must reference the root project.
 

@@ -18,7 +18,10 @@ package com.diffplug.gradle.spotless;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import javax.annotation.Nullable;
+
 import org.gradle.api.Action;
+import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.tasks.TaskProvider;
 
@@ -26,23 +29,36 @@ import com.diffplug.spotless.LazyForwardingEquality;
 
 public class SpotlessExtensionPredeclare extends SpotlessExtension {
 	private final SortedMap<String, FormatExtension> toSetup = new TreeMap<>();
-	private final RegisterDependenciesTask registerDependenciesTask;
+	private @Nullable GradleProvisioner.Policy policy;
+	private @Nullable RegisterDependenciesTask registerDependenciesTask;
+
+	public SpotlessExtensionPredeclare(Project project) {
+		super(project);
+		project.afterEvaluate(unused -> {
+			if (policy == null) {
+				if (!toSetup.isEmpty()) {
+					throw new GradleException("spotlessPredeclare requires `spotless { predeclareDeps() }` or `spotless { predeclareDepsFromBuildscript() }` in the root project.");
+				}
+				return;
+			}
+			RegisterDependenciesTask task = registerDependenciesTask;
+			if (task == null) {
+				throw new IllegalStateException("spotlessPredeclare was enabled without a register dependencies task.");
+			}
+			toSetup.forEach((name, formatExtension) -> {
+				for (Action<FormatExtension> lazyAction : formatExtension.lazyActions) {
+					lazyAction.execute(formatExtension);
+				}
+				task.steps.addAll(formatExtension.steps);
+				// needed to fix Deemon memory leaks (#1194), but this line came from https://github.com/diffplug/spotless/pull/1206
+				LazyForwardingEquality.unlazy(task.steps);
+			});
+		});
+	}
 
 	public SpotlessExtensionPredeclare(Project project, GradleProvisioner.Policy policy) {
-		super(project);
-		this.registerDependenciesTask = findRegisterDepsTask().get();
-		SpotlessTaskService taskService = getSpotlessTaskService().get();
-		taskService.registerDependenciesTask = registerDependenciesTask;
-		taskService.predeclaredProvisioner = policy.dedupingProvisioner(project);
-		taskService.predeclaredP2Provisioner = policy.dedupingP2Provisioner(project);
-		project.afterEvaluate(unused -> toSetup.forEach((name, formatExtension) -> {
-			for (Action<FormatExtension> lazyAction : formatExtension.lazyActions) {
-				lazyAction.execute(formatExtension);
-			}
-			registerDependenciesTask.steps.addAll(formatExtension.steps);
-			// needed to fix Deemon memory leaks (#1194), but this line came from https://github.com/diffplug/spotless/pull/1206
-			LazyForwardingEquality.unlazy(registerDependenciesTask.steps);
-		}));
+		this(project);
+		enablePredeclare(policy);
 	}
 
 	@Override
@@ -53,6 +69,18 @@ public class SpotlessExtensionPredeclare extends SpotlessExtension {
 	@Override
 	protected void predeclare(GradleProvisioner.Policy policy) {
 		throw new UnsupportedOperationException("predeclare can't be called from within `" + EXTENSION_PREDECLARE + "`");
+	}
+
+	void enablePredeclare(GradleProvisioner.Policy policy) {
+		if (this.policy != null) {
+			throw new GradleException("predeclareDeps can only be called once.");
+		}
+		this.policy = policy;
+		this.registerDependenciesTask = findRegisterDepsTask().get();
+		SpotlessTaskService taskService = getSpotlessTaskService().get();
+		taskService.registerDependenciesTask = registerDependenciesTask;
+		taskService.predeclaredProvisioner = policy.dedupingProvisioner(project);
+		taskService.predeclaredP2Provisioner = policy.dedupingP2Provisioner(project);
 	}
 
 	private TaskProvider<RegisterDependenciesTask> findRegisterDepsTask() {

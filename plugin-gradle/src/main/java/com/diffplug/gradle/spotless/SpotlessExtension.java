@@ -323,6 +323,6 @@ public abstract class SpotlessExtension {
 	}
 
 	protected void predeclare(GradleProvisioner.Policy policy) {
-		project.getExtensions().create(SpotlessExtensionPredeclare.class, EXTENSION_PREDECLARE, SpotlessExtensionPredeclare.class, project, policy);
+		project.getExtensions().getByType(SpotlessExtensionPredeclare.class).enablePredeclare(policy);
 	}
 }
