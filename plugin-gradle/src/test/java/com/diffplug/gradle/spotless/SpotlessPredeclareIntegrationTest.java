@@ -511,8 +511,10 @@ class SpotlessPredeclareIntegrationTest extends GradleIntegrationHarness {
 	@Nested
 	class Gradle9Compatibility {
 		@Test
-		void issue2599_Gradle951_FailsWhenPredeclareUsesBuildscriptRepositories() throws IOException {
+		void issue2599_Gradle951_CanUsePredeclareDepsFromBuildscript() throws IOException {
 			setFile("build.gradle.kts").toContent("""
+					import com.diffplug.gradle.spotless.SpotlessExtensionPredeclare
+
 					buildscript {
 					    repositories { mavenCentral() }
 					}
@@ -522,7 +524,7 @@ class SpotlessPredeclareIntegrationTest extends GradleIntegrationHarness {
 					spotless {
 					    predeclareDepsFromBuildscript()
 					}
-					spotlessPredeclare {
+					configure<SpotlessExtensionPredeclare> {
 					    kotlin { ktfmt("0.56") }
 					}
 					spotless {
@@ -537,17 +539,17 @@ class SpotlessPredeclareIntegrationTest extends GradleIntegrationHarness {
 			BuildResult result = gradleRunner()
 					.withGradleVersion("9.5.1")
 					.withArguments("spotlessApply", "--stacktrace")
-					.buildAndFail();
+					.build();
 
-			assertThat(result.getOutput())
-					.contains("Execution failed for task ':spotlessInternalRegisterDependencies'")
-					.contains("Cannot mutate configuration container for buildscript")
-					.contains("Configurations cannot be added or removed from the buildscript configuration container.");
+			assertThat(result.getOutput()).contains("BUILD SUCCESSFUL");
+			assertFile("src/main/kotlin/basic.kt").sameAsResource("kotlin/ktfmt/basic.clean");
 		}
 
 		@Test
 		void gradle951CanUsePredeclareWithProjectRepositories() throws IOException {
 			setFile("build.gradle.kts").toContent("""
+					import com.diffplug.gradle.spotless.SpotlessExtensionPredeclare
+
 					plugins {
 					    id("com.diffplug.spotless")
 					}
@@ -555,7 +557,7 @@ class SpotlessPredeclareIntegrationTest extends GradleIntegrationHarness {
 					spotless {
 					    predeclareDeps()
 					}
-					spotlessPredeclare {
+					configure<SpotlessExtensionPredeclare> {
 					    kotlin { ktfmt("0.56") }
 					}
 					spotless {
